@@ -1,0 +1,19 @@
+{
+  "folders": [
+    {
+      "path": "..\\whats-for-lunch-frontend"
+    },
+    {
+      "path": "."
+    }
+  ],
+  "settings": {
+    // This sets the main UI theme (sidebar, terminal, menus) to Dark Modern
+    "workbench.colorTheme": "Dark Modern",
+
+    // This overrides the text editor area to Light Modern ONLY when viewing frontend files
+    "[whats-for-lunch-frontend]": {
+      "workbench.colorTheme": "Light Modern"
+    }
+  }
+}

@@ -1,0 +1,39 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: whatsforlunch
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5432:5432"
+    volumes:
+      # Named volume keeps data between container restarts
+      - pgdata:/var/lib/postgresql/data
+    # pg_isready checks that PostgreSQL is actually accepting connections, not just started
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s   # check every 5 seconds
+      timeout: 5s    # give each check up to 5 seconds to respond
+      retries: 5     # fail the container after 5 consecutive failures
+
+  backend:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      # Connection string points to the db service by its service name
+      DATABASE_URL: postgresql://postgres:password@db:5432/whatsforlunch
+      # Claude API key is read from the .env file at compose startup time
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+    # Wait for the healthcheck to pass before starting the backend
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      # Live reload: mounts local code into the container so changes reflect immediately
+      - .:/app
+
+# Declare the named volume so Docker manages its lifecycle
+volumes:
+  pgdata:

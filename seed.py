@@ -31,7 +31,8 @@ def random_ordered():
     return random.randint(1, 5)
 
 
-# Each entry is a restaurant dict with a nested list of (dish_name, category) tuples.
+# Each entry is a restaurant dict with a nested list of 4-tuples:
+#   (dish_name, category, is_vegetarian, is_spicy)
 # zip_code is set to "95134" for all restaurants per project requirements.
 SEED_DATA = [
     {
@@ -39,26 +40,27 @@ SEED_DATA = [
         "cuisine_tag": "american",
         "address": "3294 Stevens Creek Blvd, San Jose, CA 95134",
         "dishes": [
+            # (name, category, is_vegetarian, is_spicy)
             # sides
-            ("Caesar Salad",                        "side"),
-            ("Chocolate Chunk Cookies",              "side"),
-            ("Garlic Knots",                         "side"),
-            ("House Salad",                          "side"),
-            ("Seasonal Fresh Fruit Platter",         "side"),
-            ("Tray of Potato Chips",                 "side"),
+            ("Caesar Salad",                            "side", False, False),
+            ("Chocolate Chunk Cookies",                 "side", True,  False),
+            ("Garlic Knots",                            "side", True,  False),
+            ("House Salad",                             "side", True,  False),
+            ("Seasonal Fresh Fruit Platter",            "side", True,  False),
+            ("Tray of Potato Chips",                    "side", True,  False),
             # meals
-            ("3 Large Deep Dish Pizzas",             "meal"),
-            ("Barbeque Chicken Deep Dish Pizza",     "meal"),
-            ("BJ's Favorite Deep Dish Pizza",        "meal"),
-            ("Burger Sliders",                       "meal"),
-            ("California Chicken Club Mini Sandwiches", "meal"),
-            ("Fresh Atlantic Salmon",                "meal"),
-            ("Greek Veggie Mini Sandwiches",         "meal"),
-            ("Grilled Chicken Alfredo Pasta",        "meal"),
-            ("No Meat Alfredo Pasta",                "meal"),
-            ("Sal's Brewhouse Chicken",              "meal"),
-            ("Vegetarian Deep Dish Pizza",           "meal"),
-            ("Veggie Pasta",                         "meal"),
+            ("3 Large Deep Dish Pizzas",                "meal", False, False),
+            ("Barbeque Chicken Deep Dish Pizza",        "meal", False, False),
+            ("BJ's Favorite Deep Dish Pizza",           "meal", False, False),
+            ("Burger Sliders",                          "meal", False, False),
+            ("California Chicken Club Mini Sandwiches", "meal", False, False),
+            ("Fresh Atlantic Salmon",                   "meal", False, False),
+            ("Greek Veggie Mini Sandwiches",            "meal", True,  False),
+            ("Grilled Chicken Alfredo Pasta",           "meal", False, False),
+            ("No meat Alfredo Pasta",                   "meal", True,  False),
+            ("Sal's Brewhouse Chicken",                 "meal", False, False),
+            ("Vegetarian Deep Dish Pizza",              "meal", True,  False),
+            ("Veggie Pasta",                            "meal", True,  True),
         ],
     },
     {
@@ -67,19 +69,19 @@ SEED_DATA = [
         "address": "510 Brokaw Rd, San Jose, CA 95134",
         "dishes": [
             # sides
-            ("Black Beans and Pinto Beans",                         "side"),
-            ("Chips",                                               "side"),
-            ("Cilantro-Lime White Rice and Brown Rice",             "side"),
-            ("Dips (Guacamole Queso Blanco Salsas)",                "side"),
-            ("Fajita Veggies",                                      "side"),
-            ("Flour Tortillas",                                     "side"),
-            ("Salad Lettuce and Taco Lettuce",                      "side"),
-            ("Shredded Cheese",                                     "side"),
-            ("Sour Cream",                                          "side"),
+            ("Black Beans and Pinto Beans",                 "side", True,  False),
+            ("Chips",                                       "side", True,  False),
+            ("Cilantro-Lime White Rice and Brown Rice",     "side", True,  False),
+            ("Dips (Guacamole, Queso Blanco, Salsas)",      "side", True,  True),
+            ("Fajita Veggies",                              "side", True,  False),
+            ("Flour Tortillas",                             "side", True,  False),
+            ("Salad Lettuce and Taco Lettuce",              "side", True,  False),
+            ("Shredded Cheese",                             "side", True,  False),
+            ("Sour Cream",                                  "side", True,  False),
             # meals
-            ("Chicken",                                             "meal"),
-            ("Sofritas Plant-Based Protein",                        "meal"),
-            ("Steak",                                               "meal"),
+            ("Chicken",                                     "meal", False, False),
+            ("Sofritas Plant-Based Protein",                "meal", True,  False),
+            ("Steak",                                       "meal", False, False),
         ],
     },
     {
@@ -88,17 +90,17 @@ SEED_DATA = [
         "address": "190 S Murphy Ave, Sunnyvale, CA 95134",
         "dishes": [
             # sides
-            ("Basil Pesto Shells",                              "side"),
-            ("Basmati Rice",                                    "side"),
-            ("House Salad",                                     "side"),
-            ("Hummus",                                          "side"),
-            ("Pita Bread",                                      "side"),
-            ("Spicy Garlic-Yogurt and Cilantro Mint Sauces",   "side"),
+            ("Basil Pesto Shells",                          "side", True,  False),
+            ("Basmati Rice",                                "side", True,  False),
+            ("House Salad",                                 "side", True,  False),
+            ("Hummus",                                      "side", True,  False),
+            ("Pita Bread",                                  "side", True,  False),
+            ("Spicy Garlic-Yogurt and Cilantro Mint Sauces","side", True,  True),
             # meals
-            ("Chicken Kebab",           "meal"),
-            ("Chicken Shawarma Wrap",   "meal"),
-            ("Falafel Wrap",            "meal"),
-            ("Kufta Kebab",             "meal"),
+            ("Chicken Kebab",                               "meal", False, False),
+            ("Chicken Shawarma Wrap",                       "meal", False, False),
+            ("Falafel Wrap",                                "meal", True,  False),
+            ("Kufta Kebab",                                 "meal", False, False),
         ],
     },
     {
@@ -107,14 +109,14 @@ SEED_DATA = [
         "address": "1560 Berryessa Rd, San Jose, CA 95133",
         "dishes": [
             # sides
-            ("Chicken Eggrolls",    "side"),
-            ("Veggie Eggrolls",     "side"),
+            ("Chicken Eggrolls",    "side", False, False),
+            ("Veggie Eggrolls",     "side", True,  False),
             # meals
-            ("Beef Broccoli",       "meal"),
-            ("Orange Chicken",      "meal"),
-            ("Shaken Tofu",         "meal"),
-            ("Veggie Chow Mein",    "meal"),
-            ("Veggie Fried Rice",   "meal"),
+            ("Beef Broccoli",       "meal", False, False),
+            ("Orange Chicken",      "meal", False, False),
+            ("Shaken Tofu",         "meal", True,  False),
+            ("Veggie Chow Mein",    "meal", True,  False),
+            ("Veggie Fried Rice",   "meal", True,  False),
         ],
     },
     {
@@ -123,17 +125,17 @@ SEED_DATA = [
         "address": "3970 Freedom Circle, Santa Clara, CA 95054",
         "dishes": [
             # sides
-            ("Assorted Cookies",    "side"),
-            ("Basil Pesto Shells",  "side"),
+            ("Assorted Cookies",                        "side", True,  False),
+            ("Basil Pesto Shells",                      "side", True,  False),
             # meals
-            ("Chicken Pesto Caprese Sandwich",          "meal"),
-            ("Chimichurri Steak and Bacon Sandwich",    "meal"),
-            ("Mario's Caprese Sandwich",                "meal"),
-            ("Not So Fried Chicken Sandwich",           "meal"),
-            ("Pink Lady Apple and Goat Cheese Salad",   "meal"),
-            ("Prosciutto and Chicken Sandwich",         "meal"),
-            ("The Farm Club Sandwich",                  "meal"),
-            ("Turkey Avo Salsa Verde Sandwich",         "meal"),
+            ("Chicken Pesto Caprese Sandwich",          "meal", False, False),
+            ("Chimichurri Steak and Bacon Sandwich",    "meal", False, False),
+            ("Mario's Caprese Sandwich",                "meal", True,  False),
+            ("Not so Fried Chicken Sandwich",           "meal", False, False),
+            ("Pink Lady Apple and Goat Cheese Salad",   "meal", True,  False),
+            ("Prosciutto and Chicken Sandwich",         "meal", False, False),
+            ("The Farm Club Sandwich",                  "meal", False, False),
+            ("Turkey Avo Salsa Verde Sandwich",         "meal", False, False),
         ],
     },
     {
@@ -142,15 +144,15 @@ SEED_DATA = [
         "address": "3055 Olin Ave, San Jose, CA 95128",
         "dishes": [
             # sides
-            ("Butter",              "side"),
-            ("Cream Cheese",        "side"),
-            ("Large Fruit Bowl",    "side"),
+            ("Butter",                          "side", True, False),
+            ("Cream Cheese",                    "side", True, False),
+            ("Large Fruit Bowl",                "side", True, False),
             # meals
-            ("Assorted Bagels and Pastries",    "meal"),
-            ("Greek Yogurt with Berries Parfait", "meal"),
+            ("Assorted Bagels and Pastries",    "meal", True, False),
+            ("Greek Yogurt w/Berries Parfait",  "meal", True, False),
             # drinks
-            ("Coffee",          "drink"),
-            ("Orange Juice",    "drink"),
+            ("Coffee",                          "drink", True, False),
+            ("Orange Juice",                    "drink", True, False),
         ],
     },
 ]
@@ -184,11 +186,13 @@ def seed():
                   f"(rating={restaurant.user_rating}, visits={restaurant.visit_count})")
 
             # Insert every dish linked to this restaurant
-            for dish_name, category in entry["dishes"]:
+            for dish_name, category, is_vegi, is_spicy in entry["dishes"]:
                 dish = Dish(
                     name=dish_name,
                     restaurant_id=restaurant.id,    # FK set after flush populated the PK
                     category=category,
+                    is_vegetarian=is_vegi,          # sourced directly from seed table
+                    is_spicy=is_spicy,              # sourced directly from seed table
                     user_rating=random_rating(),
                     times_ordered=random_ordered(),
                 )

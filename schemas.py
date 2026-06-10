@@ -54,6 +54,8 @@ class DishCreate(BaseModel):
     user_rating: Optional[float] = None   # null until the user rates it
     times_ordered: int = 0                # starts at zero on creation
     notes: Optional[str] = None
+    is_vegetarian: bool = False           # True if the dish contains no meat or animal products
+    is_spicy: bool = False                # True if the dish is notably spicy
 
 
 class DishUpdate(BaseModel):
@@ -64,6 +66,8 @@ class DishUpdate(BaseModel):
     user_rating: Optional[float] = None
     times_ordered: Optional[int] = None
     notes: Optional[str] = None
+    is_vegetarian: Optional[bool] = None  # True if the dish contains no meat or animal products
+    is_spicy: Optional[bool] = None       # True if the dish is notably spicy
 
 
 class DishResponse(BaseModel):
@@ -76,6 +80,8 @@ class DishResponse(BaseModel):
     user_rating: Optional[float]
     times_ordered: int
     notes: Optional[str]
+    is_vegetarian: bool                   # True if the dish contains no meat or animal products
+    is_spicy: bool                        # True if the dish is notably spicy
     created_at: datetime
 
     # Allows Pydantic to read values from SQLAlchemy ORM objects (not just dicts)

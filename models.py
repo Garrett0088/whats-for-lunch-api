@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, Text, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, Float, Text, DateTime, ForeignKey, Boolean
 from sqlalchemy.orm import DeclarativeBase, relationship
 from datetime import datetime, timezone
 
@@ -70,6 +70,12 @@ class Dish(Base):
 
     # Free-text personal notes, e.g. "get it spicy"
     notes = Column(Text, nullable=True)
+
+    # True if the dish contains no meat or animal products
+    is_vegetarian = Column(Boolean, default=False)
+
+    # True if the dish is notably spicy
+    is_spicy = Column(Boolean, default=False)
 
     # Automatically set to current UTC time on insert
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))

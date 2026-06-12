@@ -266,13 +266,25 @@ def run_dish_agent(request: AgentRequest, db: Session = Depends(get_db)):
     # (which are generic and take db as their first argument) can be
     # called by run_agent with just the arguments Claude provides
     def get_dishes_wrapper(restaurant_id: int | None = None):
-        return get_dishes_fn(db, restaurant_id)
+        try:
+            return get_dishes_fn(db, restaurant_id)
+        except Exception as exc:
+            db.rollback()
+            return {"error": f"Lookup failed: {exc}", "dishes": []}
 
     def update_dish_wrapper(id: int, **updates):
-        return update_dish_fn(db, id, **updates)
+        try:
+            return update_dish_fn(db, id, **updates)
+        except Exception as exc:
+            db.rollback()
+            return {"error": f"Update failed: {exc}"}
 
     def delete_dish_wrapper(id: int):
-        return delete_dish_fn(db, id)
+        try:
+            return delete_dish_fn(db, id)
+        except Exception as exc:
+            db.rollback()
+            return {"error": f"Delete failed: {exc}"}
 
     # Keys MUST match the "name" fields in agent.py's tools list exactly
     tool_functions = {
@@ -281,13 +293,16 @@ def run_dish_agent(request: AgentRequest, db: Session = Depends(get_db)):
         "delete_dish": delete_dish_wrapper,
     }
 
-    reply, agent_steps, updated_history = run_agent(
-        request.message,
-        request.conversation_history,
-        tools,
-        tool_functions,
-        restaurant_context=restaurant_context,
-    )
+    try:
+        reply, agent_steps, updated_history = run_agent(
+            request.message,
+            request.conversation_history,
+            tools,
+            tool_functions,
+            restaurant_context=restaurant_context,
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Agent error: {exc}")
 
     return {
         "response": reply,

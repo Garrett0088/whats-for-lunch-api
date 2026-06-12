@@ -155,6 +155,25 @@ SEED_DATA = [
             ("Orange Juice",                    "drink", True, False),
         ],
     },
+    {
+        "name": "Starbucks",
+        "cuisine_tag": "Coffee & Bakery",
+        "address": "55 River Oaks Pl, San Jose, CA 95134",
+        "dishes": [
+            # drinks
+            ("Caffè Latte",            "drink", True, False),
+            ("Cappuccino",             "drink", True, False),
+            ("Cold Brew",              "drink", True, False),
+            ("Caramel Macchiato",      "drink", True, False),
+            ("Iced Matcha Latte",      "drink", True, False),
+            # sides (bakery / desserts)
+            ("Chocolate Croissant",    "side",  True, False),
+            ("Blueberry Muffin",       "side",  True, False),
+            ("Lemon Pound Cake",       "side",  True, False),
+            ("Banana Nut Bread",       "side",  True, False),
+            ("Chocolate Chunk Cookie", "side",  True, False),
+        ],
+    },
 ]
 
 

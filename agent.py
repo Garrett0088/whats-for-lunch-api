@@ -48,7 +48,7 @@ tools = [
         "input_schema": {
             "type": "object",
             "properties": {
-                "id": {"type": "integer", "description": "The dish's id (from get_dishes)."},
+                "id": {"type": "integer", "description": "The dish's integer id — must come from a get_dishes result in this same turn. Never use a placeholder or a value from memory."},
                 "user_rating": {
                     "type": "number",
                     "minimum": 1,
@@ -193,10 +193,40 @@ def run_agent(
 # System prompt — keep this small and dish-focused for the agent mode
     system_prompt = (
         "You are an action-taking assistant for a lunch tracker app. "
-        "You can look up, update, and delete dishes. Always use get_dishes "
-        "first if the user names a dish rather than giving you an id. "
+        "You can look up, update, and delete dishes. "
         "Be concise in your final response — confirm what you did in one "
         "or two sentences.\n\n"
+        "WORKFLOW — follow this exact sequence for every update or delete request:\n"
+        "1. Call get_dishes to retrieve the current dish list.\n"
+        "2. Identify the correct dish by matching name and restaurant from the result.\n"
+        "3. Extract its integer `id` field from that result.\n"
+        "4. Call update_dish or delete_dish using ONLY that integer id.\n"
+        "NEVER call update_dish or delete_dish without completing steps 1-3 in the SAME turn. "
+        "NEVER assume you already know a dish's id from previous conversation turns — "
+        "ids must always come from a fresh get_dishes call.\n\n"
+        "Formatting rules:\n"
+        "- Never use markdown pipe-table syntax (| columns | like | this |). "
+        "Use plain prose or dash-bullet lists instead.\n"
+        "- When listing multiple dishes, always group them by category in this order: "
+        "Meals first, then Sides, then Drinks. Use a bold header for each group "
+        "(e.g. **Meals**, **Sides / Bakery**, **Drinks**). "
+        "Within each group, sort by rating descending (highest first). "
+        "Example entry: - Garlic Knots (BJ's Restaurant) — 5.0★, ordered 3 times\n\n"
+        "Category semantics — every dish has one of three category values:\n"
+        "- 'meal': main dishes (pizza, sandwiches, burritos, kebabs, pasta, etc.)\n"
+        "- 'side': accompaniments AND bakery/dessert items (salads, cookies, muffins, chips, bread, sauces, etc.)\n"
+        "- 'drink': beverages only (coffee, juice, latte, cold brew, etc.)\n\n"
+        "Filtering rules — apply these strictly and NEVER mix categories across a filter boundary:\n"
+        "- DRINKS ONLY: if the user mentions coffee, tea, latte, cold brew, juice, drinks, or beverages → "
+        "show category == 'drink' only. Do not include any meals or sides.\n"
+        "- MEALS ONLY: if the user asks for a dish, food, something to eat, lunch, or a main → "
+        "show category == 'meal' only. Do not include sides (cookies, salads, chips) or drinks.\n"
+        "- SIDES ONLY: if the user asks for a dessert, snack, bakery item, or side → "
+        "show category == 'side' only.\n"
+        "- SPICY / VEGETARIAN: these are attributes of food, never beverages. "
+        "When the user asks for something spicy or vegetarian, filter by category == 'meal' or 'side' only. "
+        "Never suggest a drink as a spicy or vegetarian option.\n"
+        "- When no category is implied, show all categories grouped as described above.\n\n"
         f"Restaurant id-to-name mapping (dishes reference restaurants by id only):\n"
         f"{restaurant_context}"
     )
@@ -248,7 +278,12 @@ def run_agent(
             if block.type == "tool_use":
                 fn = tool_functions.get(block.name)
                 if fn:
-                    result = fn(**block.input)
+                    try:
+                        result = fn(**block.input)
+                    except Exception as exc:
+                        # Surface the exception as an error dict so Claude can
+                        # tell the user what went wrong instead of crashing the request
+                        result = {"error": f"Tool '{block.name}' raised an exception: {exc}"}
                 else:
                     result = {"error": f"Unknown tool: {block.name}"}
 

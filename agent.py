@@ -1,0 +1,277 @@
+# agent.py
+# Dish-focused AI agent for What's For Lunch — Week 6 pattern, scoped down.
+# Provides: tool schemas, tool functions (get/update/delete dish), and the agent loop.
+
+import json
+import anthropic
+from dotenv import load_dotenv
+from sqlalchemy.orm import Session
+from models import Dish
+
+# Defensive load — works even if this file is imported standalone for testing
+load_dotenv()
+client = anthropic.Anthropic()
+
+
+# ── PART 1: Tool schemas ────────────────────────────────────────────────────
+# These are sent to Claude with every /ai/agent request. Claude reads the
+# "description" fields as BEHAVIORAL INSTRUCTIONS, not just documentation —
+# the disambiguation wording below is doing real work (Week 6 lesson §5.1).
+
+tools = [
+    {
+        "name": "get_dishes",
+        "description": (
+            "List dishes, optionally filtered to one restaurant. Use this first "
+            "whenever the user refers to a dish by name rather than by id — "
+            "you need the id before you can update or delete anything."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "restaurant_id": {
+                    "type": "integer",
+                    "description": "Optional — limit results to dishes at this restaurant."
+                }
+            },
+            "required": []
+        }
+    },
+    {
+        "name": "update_dish",
+        "description": (
+            "Update a dish's rating, times ordered, category, or vegetarian/spicy tags. "
+            "Requires the dish's id — call get_dishes first if you only know the name. "
+            "If multiple dishes could match what the user described, ask which one "
+            "they mean before updating."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "id": {"type": "integer", "description": "The dish's id (from get_dishes)."},
+                "user_rating": {
+                    "type": "number",
+                    "minimum": 1,
+                    "maximum": 5,
+                    "description": "New rating, 1-5."
+                },
+                "times_ordered": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "New times-ordered count."
+                },
+                "category": {"type": "string", "description": "New category, e.g. 'meal' or 'drink'."},
+                "is_vegetarian": {"type": "boolean"},
+                "is_spicy": {"type": "boolean"}
+            },
+            "required": ["id"]
+        }
+    },
+    {
+        "name": "delete_dish",
+        "description": (
+            "Permanently delete a dish by id. Call get_dishes first to find the id. "
+            "If multiple dishes could match the user's description (e.g. two dishes "
+            "with similar names), ask which one they mean before deleting."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "id": {"type": "integer", "description": "The dish's id to delete."}
+            },
+            "required": ["id"]
+        }
+    },
+]
+
+
+# ── PART 2: Tool functions ──────────────────────────────────────────────────
+# Each function takes a `db` session (the endpoint will close over it) plus
+# whatever arguments Claude supplies, and returns a plain dict — never an
+# ORM object directly, since that can't be JSON-serialized back to Claude.
+
+def get_dishes_fn(db: Session, restaurant_id: int | None = None) -> dict:
+    # Start with every dish, narrow down if a restaurant_id was given
+    query = db.query(Dish)
+    if restaurant_id is not None:
+        query = query.filter(Dish.restaurant_id == restaurant_id)
+    dishes = query.all()
+
+    # Return plain dicts — SQLAlchemy objects aren't JSON-serializable
+    return {
+        "dishes": [
+            {
+                "id": d.id,
+                "name": d.name,
+                "restaurant_id": d.restaurant_id,
+                "category": d.category,
+                "user_rating": d.user_rating,
+                "times_ordered": d.times_ordered,
+                "is_vegetarian": d.is_vegetarian,
+                "is_spicy": d.is_spicy,
+            }
+            for d in dishes
+        ]
+    }
+
+
+def update_dish_fn(db: Session, id: int, **updates) -> dict:
+    # Look up the dish — if it doesn't exist, tell Claude (don't crash)
+    dish = db.query(Dish).filter(Dish.id == id).first()
+    if not dish:
+        return {"error": f"No dish found with id {id}"}
+
+    # Defense in depth (Week 6 §5.2): the JSON Schema "minimum"/"maximum" only
+    # GUIDES Claude — this Python check is the actual server-side guard.
+    if "user_rating" in updates and updates["user_rating"] is not None:
+        rating = updates["user_rating"]
+        if not (1 <= rating <= 5):
+            return {"error": "user_rating must be between 1 and 5 — no changes made."}
+
+    # Capture the OLD value of every field we're about to overwrite.
+    # This is what powers the frontend "Undo" button — without this dict,
+    # there'd be no way to revert the change later.
+    previous_value = {}
+    for field, value in updates.items():
+        if value is not None:
+            previous_value[field] = getattr(dish, field)
+            setattr(dish, field, value)
+
+    # No fields to update (all None) — nothing changed, report that clearly
+    if not previous_value:
+        return {"error": "No updatable fields were provided."}
+
+    db.commit()
+    db.refresh(dish)
+
+    return {
+        "id": dish.id,
+        "name": dish.name,
+        "updated_fields": list(previous_value.keys()),
+        "previous_value": previous_value,  # <-- frontend Undo button uses this
+        "current_value": {field: getattr(dish, field) for field in previous_value},
+    }
+
+
+def delete_dish_fn(db: Session, id: int) -> dict:
+    # Look up the dish — if it doesn't exist, tell Claude (don't crash)
+    dish = db.query(Dish).filter(Dish.id == id).first()
+    if not dish:
+        return {"error": f"No dish found with id {id}"}
+
+    # Save the name before deleting — needed for the agent_steps action log
+    name = dish.name
+    db.delete(dish)
+    db.commit()
+
+    return {"id": id, "name": name, "deleted": True}
+
+
+# ── PART 3: The agent loop ──────────────────────────────────────────────────
+
+def run_agent(
+    user_message: str,
+    conversation_history: list[dict],
+    tools: list[dict],
+    tool_functions: dict,
+    restaurant_context: str = "",   # NEW — e.g. "1: BJ's Restaurant\n2: Chipotle\n..."
+    max_iterations: int = 10,
+):
+    """
+    Runs Claude in a tool-use loop until it produces a final text answer.
+
+    conversation_history: simple [{role, content: str}, ...] — SAME shape as
+    /ai/chat and /ai/recommend use. This function builds its own internal
+    working list (with tool_use/tool_result blocks) for the API calls, but
+    returns updated_history in the same simple shape so the frontend doesn't
+    need any new types.
+
+    Returns: (final_text, agent_steps, updated_history)
+    """
+
+    # System prompt — keep this small and dish-focused for the agent mode
+# System prompt — keep this small and dish-focused for the agent mode
+    system_prompt = (
+        "You are an action-taking assistant for a lunch tracker app. "
+        "You can look up, update, and delete dishes. Always use get_dishes "
+        "first if the user names a dish rather than giving you an id. "
+        "Be concise in your final response — confirm what you did in one "
+        "or two sentences.\n\n"
+        f"Restaurant id-to-name mapping (dishes reference restaurants by id only):\n"
+        f"{restaurant_context}"
+    )
+
+    # Internal working messages — starts from the plain history, converted
+    # to the format the Anthropic API expects (content as plain strings is fine
+    # for prior turns; tool blocks only get added for THIS turn's reasoning)
+    messages = [
+        {"role": turn["role"], "content": turn["content"]}
+        for turn in conversation_history
+    ] + [{"role": "user", "content": user_message}]
+
+    # agent_steps is built INCREMENTALLY inside the loop (Week 6 §5.3 "paper trail")
+    agent_steps: list[dict] = []
+
+    for _ in range(max_iterations):
+        response = client.messages.create(
+            model="claude-sonnet-4-6",
+            max_tokens=1024,
+            system=system_prompt,
+            tools=tools,
+            messages=messages,
+        )
+
+        # Always append Claude's response to the working messages so it has
+        # context for the next loop iteration if more tool calls are needed
+        messages.append({"role": "assistant", "content": response.content})
+
+        # If Claude is done (not asking for a tool), find its text and return
+        if response.stop_reason != "tool_use":
+            for block in response.content:
+                if block.type == "text":
+                    updated_history = conversation_history + [
+                        {"role": "user", "content": user_message},
+                        {"role": "assistant", "content": block.text},
+                    ]
+                    return block.text, agent_steps, updated_history
+
+            # Fallback per Week 6 §6 — avoid an infinite-spin if no text block exists
+            updated_history = conversation_history + [
+                {"role": "user", "content": user_message},
+                {"role": "assistant", "content": "Done."},
+            ]
+            return "Agent finished with no text response.", agent_steps, updated_history
+
+        # Claude wants to use one or more tools — run each one and collect results
+        tool_results = []
+        for block in response.content:
+            if block.type == "tool_use":
+                fn = tool_functions.get(block.name)
+                if fn:
+                    result = fn(**block.input)
+                else:
+                    result = {"error": f"Unknown tool: {block.name}"}
+
+                # Record this step in the paper trail — visible in the
+                # frontend's "Agent Actions" panel
+                agent_steps.append({
+                    "tool": block.name,
+                    "input": block.input,
+                    "result": result,
+                })
+
+                tool_results.append({
+                    "type": "tool_result",
+                    "tool_use_id": block.id,
+                    "content": json.dumps(result),
+                })
+
+        # Feed the tool results back to Claude as the next "user" turn
+        messages.append({"role": "user", "content": tool_results})
+
+    # Safety valve — if we somehow loop max_iterations times without a final answer
+    updated_history = conversation_history + [
+        {"role": "user", "content": user_message},
+        {"role": "assistant", "content": "Reached the step limit before finishing."},
+    ]
+    return "Agent reached the maximum number of steps.", agent_steps, updated_history

@@ -96,3 +96,9 @@ class ChatRequest(BaseModel):
     # All previous turns in the conversation so Claude has full context
     # Each dict has "role" ("user" or "assistant") and "content" (the text)
     conversation_history: list[dict] = []
+
+# Request schema for the agent endpoint — same shape as ChatRequest,
+# kept separate in case agent-specific fields are added later
+class AgentRequest(BaseModel):
+    message: str
+    conversation_history: list[dict] = []

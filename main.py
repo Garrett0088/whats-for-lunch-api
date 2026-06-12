@@ -7,11 +7,13 @@ from models import Restaurant, Dish, Base
 from schemas import (
     RestaurantCreate, RestaurantUpdate, RestaurantResponse,
     DishCreate, DishUpdate, DishResponse,
-    ChatRequest,
+    ChatRequest, AgentRequest,
 )
 
 import anthropic
 from dotenv import load_dotenv
+# Agent tools and loop — Dish-focused AI agent (Week 6 pattern, scoped to dishes)
+from agent import tools, run_agent, get_dishes_fn, update_dish_fn, delete_dish_fn
 
 # Load ANTHROPIC_API_KEY and DATABASE_URL from .env before the app starts
 load_dotenv()
@@ -124,6 +126,17 @@ def update_dish(dish_id: int, updates: DishUpdate, db: Session = Depends(get_db)
     db.refresh(dish)
     return dish
 
+@app.delete("/dishes/{dish_id}", status_code=204)
+def delete_dish_endpoint(dish_id: int, db: Session = Depends(get_db)):
+    # Look up the dish; return 404 if it doesn't exist
+    dish = db.query(Dish).filter(Dish.id == dish_id).first()
+    if not dish:
+        raise HTTPException(status_code=404, detail="Dish not found")
+
+    db.delete(dish)
+    db.commit()
+    # 204 No Content — successful delete, nothing to return
+    return None
 
 # ── AI helper: build context string from the user's data ─────────────────────
 
@@ -238,4 +251,46 @@ def chat_with_assistant(request: ChatRequest, db: Session = Depends(get_db)):
     return {
         "reply": reply,
         "updated_history": messages + [{"role": "assistant", "content": reply}],
+    }
+
+# ── AI endpoint: action-taking agent (dish CRUD via tool use) ────────────────
+
+@app.post("/ai/agent")
+def run_dish_agent(request: AgentRequest, db: Session = Depends(get_db)):
+    # Build "1: BJ's Restaurant\n2: Chipotle\n..." so Claude can resolve
+    # restaurant names without an extra tool call (dishes only store restaurant_id)
+    restaurants = db.query(Restaurant).all()
+    restaurant_context = "\n".join(f"{r.id}: {r.name}" for r in restaurants)
+
+    # Wrapper functions close over `db` so agent.py's *_fn functions
+    # (which are generic and take db as their first argument) can be
+    # called by run_agent with just the arguments Claude provides
+    def get_dishes_wrapper(restaurant_id: int | None = None):
+        return get_dishes_fn(db, restaurant_id)
+
+    def update_dish_wrapper(id: int, **updates):
+        return update_dish_fn(db, id, **updates)
+
+    def delete_dish_wrapper(id: int):
+        return delete_dish_fn(db, id)
+
+    # Keys MUST match the "name" fields in agent.py's tools list exactly
+    tool_functions = {
+        "get_dishes": get_dishes_wrapper,
+        "update_dish": update_dish_wrapper,
+        "delete_dish": delete_dish_wrapper,
+    }
+
+    reply, agent_steps, updated_history = run_agent(
+        request.message,
+        request.conversation_history,
+        tools,
+        tool_functions,
+        restaurant_context=restaurant_context,
+    )
+
+    return {
+        "response": reply,
+        "agent_steps": agent_steps,
+        "updated_history": updated_history,
     }

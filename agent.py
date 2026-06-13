@@ -189,8 +189,6 @@ def run_agent(
     Returns: (final_text, agent_steps, updated_history)
     """
 
-    # System prompt — keep this small and dish-focused for the agent mode
-# System prompt — keep this small and dish-focused for the agent mode
     system_prompt = (
         "You are an action-taking assistant for a lunch tracker app. "
         "You can look up, update, and delete dishes. "

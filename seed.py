@@ -174,6 +174,76 @@ SEED_DATA = [
             ("Chocolate Chunk Cookie", "side",  True, False),
         ],
     },
+    {
+        "name": "Koi Palace (鲤鱼门)",
+        "cuisine_tag": "chinese",
+        "address": "688 Barber Ln, Milpitas, CA 95035",
+        "dishes": [
+            # meals
+            ("Kung Pao Chicken", "meal", False, True),
+            ("Beef with Broccoli", "meal", False, False),
+            # sides
+            ("Spring Rolls",      "side", False, False),
+            # drinks
+            ("Oolong Boba Tea",   "drink", True, False),
+        ],
+    },
+    {
+        "name": "Uncle Cha",
+        "cuisine_tag": "chinese",
+        "address": "103 N Milpitas Blvd, Milpitas, CA 95035",
+        "dishes": [
+            # meals
+            ("Sweet and Sour Pork", "meal", False, False),
+            ("Mapo Tofu",           "meal", True,  True),
+            # sides
+            ("Pot Stickers",        "side", False, False),
+            # drinks
+            ("Matcha Boba Tea",     "drink", True, False),
+        ],
+    },
+    {
+        "name": "Cheung Hing (祥兴)",
+        "cuisine_tag": "chinese",
+        "address": "1235 E Calaveras Blvd, Milpitas, CA 95035",
+        "dishes": [
+            # meals
+            ("General Tso's Chicken",     "meal",  False, True),
+            ("Mongolian Beef",            "meal",  False, False),
+            # sides
+            ("Egg Rolls",                 "side",  False, False),
+            # drinks
+            ("Hong Kong Style Yuan Yang", "drink", True,  False),
+        ],
+    },
+    {
+        "name": "Taiwan Porridge",
+        "cuisine_tag": "taiwanese",
+        "address": "1706 N Milpitas Blvd, Milpitas, CA 95035",
+        "dishes": [
+            # meals
+            ("Three-Cup Chicken", "meal",  False, False),
+            ("Dan Dan Noodles",   "meal",  False, True),
+            # sides
+            ("Scallion Pancake",  "side",  True,  False),
+            # drinks
+            ("Vietnamese Coffee", "drink", True,  False),
+        ],
+    },
+    {
+        "name": "HL Peninsula (半岛酒家)",
+        "cuisine_tag": "cantonese",
+        "address": "136 Ranch Drive, Milpitas, CA 95035",
+        "dishes": [
+            # meals
+            ("Peking Duck",            "meal",  False, False),
+            ("Salt and Pepper Shrimp", "meal",  False, True),
+            # sides
+            ("Steamed Dumplings",      "side",  False, False),
+            # drinks
+            ("Passion Fruit Drink",    "drink", True,  False),
+        ],
+    },
 ]
 
 
